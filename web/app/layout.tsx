@@ -17,11 +17,24 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: 'Munchies — Save recipes from anywhere',
   description: 'Paste a YouTube or Instagram link and Munchies pulls the recipe for you.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Munchies',
+  },
+  icons: {
+    apple: '/icon-192.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${playfair.variable} ${dmSans.variable}`}>
+      <head>
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#FFF312" />
+      </head>
       <body>{children}</body>
     </html>
   );
