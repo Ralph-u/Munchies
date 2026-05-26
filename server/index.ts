@@ -218,7 +218,9 @@ async function extractRecipe(url: string): Promise<Omit<Recipe, 'id' | 'source_u
     return MOCK_CARBONARA;
   }
 
-  const client = new Anthropic({ apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY });
+  // Strip anything after whitespace in case the env var was saved with extra content
+  const apiKey = (process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '').split(/\s/)[0];
+  const client = new Anthropic({ apiKey });
 
   // ── Primary path: transcript + page metadata ──────────────────────────────
   let transcript = '';
