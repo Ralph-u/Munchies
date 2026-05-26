@@ -1,18 +1,29 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function AddPage() {
   const router = useRouter();
   const [url, setUrl] = useState('');
+  const [pasteHint, setPasteHint] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
   const hasUrl = url.trim().length > 0;
 
   async function handlePaste() {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text) setUrl(text);
-    } catch {}
+    // Try the Clipboard API first (works on Android, desktop, and iOS 16.4+ with permission)
+    if (navigator.clipboard?.readText) {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) { setUrl(text); setPasteHint(''); return; }
+      } catch {
+        // Permission denied or not available — fall through to manual paste hint
+      }
+    }
+    // iOS Safari fallback: focus the input so the user can long-press → Paste
+    inputRef.current?.focus();
+    setPasteHint('Long-press the field above and tap Paste');
+    setTimeout(() => setPasteHint(''), 4000);
   }
 
   function handleExtract() {
@@ -32,7 +43,8 @@ export default function AddPage() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <label style={{ fontSize: 12, color: 'var(--black)' }}>URL link</label>
-          <input className="input-comic" type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." autoCapitalize="off" autoCorrect="off" onKeyDown={(e) => e.key === 'Enter' && handleExtract()} />
+          <input ref={inputRef} className="input-comic" type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." autoCapitalize="off" autoCorrect="off" onKeyDown={(e) => e.key === 'Enter' && handleExtract()} />
+          {pasteHint && <p style={{ fontSize: 12, color: 'var(--black)', opacity: 0.55, margin: '4px 0 0' }}>{pasteHint}</p>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: hasUrl ? 'space-between' : 'flex-start' }}>
           <button onClick={handlePaste} style={{ background: 'none', border: 'none', fontSize: 14, fontWeight: 500, color: 'var(--black)', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>Paste from clipboard</button>
