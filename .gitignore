@@ -45,3 +45,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Next.js web app
+web/.next/
+web/node_modules/
+web/.env.local

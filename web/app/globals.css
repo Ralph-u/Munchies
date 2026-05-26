@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --yellow: #FFF312;
+  --cream: #fffcbc;
+  --black: #1a1a1a;
+  --white: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--cream);
+  color: var(--black);
+  font-family: var(--font-sans), 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-serif { font-family: var(--font-serif), 'Playfair Display', serif; }
+
+.btn-comic {
+  border-radius: 999px;
+  border: 2px solid var(--black);
+  border-bottom-width: 5px;
+  padding: 16px 40px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+.btn-comic:hover { opacity: 0.85; }
+.btn-comic:active { transform: translateY(2px); border-bottom-width: 2px; }
+.btn-comic-yellow { background: var(--yellow); color: var(--black); }
+.btn-comic-white { background: var(--white); color: var(--black); }
+
+.input-comic {
+  background: white;
+  border: 1px solid var(--black);
+  border-bottom-width: 2px;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: var(--black);
+  width: 100%;
+  outline: none;
+  font-family: var(--font-sans), sans-serif;
+}
+.input-comic:focus { border-bottom-width: 3px; }
+
+.ingredient-row:nth-child(even) { background: var(--cream); }
+
+.step-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--cream);
+  border: 1px solid var(--yellow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid var(--black);
+  border-top-color: transparent;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.4s ease forwards; }
+
+.container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+
+.header-art {
+  background: var(--cream);
+  background-image: repeating-linear-gradient(
+    45deg, transparent, transparent 10px,
+    rgba(255, 243, 18, 0.15) 10px, rgba(255, 243, 18, 0.15) 20px
+  );
+}
