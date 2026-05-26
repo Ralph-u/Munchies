@@ -110,6 +110,25 @@ function toAbsoluteUrl(src: string, base: string): string {
 }
 
 async function fetchPageMeta(url: string): Promise<PageMeta> {
+  // YouTube blocks server-side scrapers — use oEmbed for reliable title + thumbnail
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    try {
+      const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
+      if (oembedRes.ok) {
+        const data = await oembedRes.json() as { title?: string; author_name?: string };
+        const videoIdMatch = url.match(/(?:v=|youtu\.be\/)([^&?/\s]+)/);
+        const thumbnailUrl = videoIdMatch
+          ? `https://img.youtube.com/vi/${videoIdMatch[1]}/hqdefault.jpg`
+          : '';
+        return {
+          title: data.title ?? '',
+          description: data.author_name ? `Cooking video by ${data.author_name}` : '',
+          thumbnailUrl,
+        };
+      }
+    } catch { /* fall through to scraping */ }
+  }
+
   const res = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -227,8 +246,9 @@ async function extractRecipe(url: string): Promise<Omit<Recipe, 'id' | 'source_u
   try {
     const segments = await YoutubeTranscript.fetchTranscript(url);
     transcript = segments.map((s) => s.text).join(' ');
-  } catch {
-    // No captions — fall through to vision fallback below
+    console.log(`Transcript fetched: ${transcript.length} chars`);
+  } catch (e) {
+    console.log('Transcript fetch failed:', e instanceof Error ? e.message : String(e));
   }
 
   if (transcript) {
