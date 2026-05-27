@@ -78,7 +78,7 @@ export default function HomePage() {
       {/* Sticky illustration band — sits behind everything, sticks to top */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', zIndex: 0 }}>
         <div style={{ position: 'sticky', top: 0, height: ILLUSTRATION_H, background: '#fffcbc', overflow: 'hidden' }}>
-          <img src="/header-art.svg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+          <img src="/header-art.svg" alt="" style={{ width: '100%', height: 'auto', display: 'block' }} />
         </div>
       </div>
 

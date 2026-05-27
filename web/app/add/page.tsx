@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function AddPage() {
   const router = useRouter();
@@ -30,9 +31,18 @@ export default function AddPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#fffcbc', display: 'flex', flexDirection: 'column' }}>
 
+      {/* Back button */}
+      <Link href="/" style={{
+        position: 'fixed', top: 16, left: 16, zIndex: 20,
+        width: 48, height: 48, borderRadius: 999,
+        background: '#FFF312', border: '2px solid #1a1a1a', borderBottomWidth: 4,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        textDecoration: 'none', fontSize: 20, fontWeight: 700, color: '#1a1a1a',
+      }}>←</Link>
+
       {/* Illustration band */}
-      <div style={{ height: 160, background: '#fffcbc', overflow: 'hidden', flexShrink: 0 }}>
-        <img src="/header-art.svg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+      <div style={{ height: 137, background: '#fffcbc', overflow: 'hidden', flexShrink: 0 }}>
+        <img src="/header-art.svg" alt="" style={{ width: '100%', height: 'auto', display: 'block' }} />
       </div>
 
       {/* Content */}
