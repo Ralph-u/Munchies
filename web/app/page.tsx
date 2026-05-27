@@ -153,13 +153,15 @@ export default function HomePage() {
                       : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🍽️</div>}
                     <PlatformBadge platform={recipe.source_platform} />
                   </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.2, color: '#1a1a1a' }}>{recipe.title}</div>
-                    <div style={{ fontSize: 12, color: '#808080' }}>
-                      {(recipe.ingredients?.length ?? 0)} ingredients · {(recipe.steps?.length ?? 0)} steps
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.2, color: '#1a1a1a' }}>{recipe.title}</div>
+                      <div style={{ fontSize: 12, color: '#808080' }}>
+                        {(recipe.ingredients?.length ?? 0)} ingredients · {(recipe.steps?.length ?? 0)} steps
+                      </div>
                     </div>
                     {recipe.created_at && (
-                      <div style={{ fontSize: 12, color: '#808080' }}>Uploaded {timeAgo(recipe.created_at)}</div>
+                      <div style={{ fontSize: 12, color: '#cacaca' }}>Uploaded {timeAgo(recipe.created_at)}</div>
                     )}
                   </div>
                 </Link>
