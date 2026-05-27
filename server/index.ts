@@ -231,25 +231,86 @@ async function fetchImageBase64(url: string): Promise<{ data: string; mediaType:
 interface InstagramContext {
   caption: string;
   thumbnailUrl: string;
+  topComments: string[];
+}
+
+function extractInstagramShortcode(url: string): string | null {
+  return url.match(/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/)?.[1] ?? null;
+}
+
+async function fetchInstagramTopComments(shortcode: string): Promise<string[]> {
+  try {
+    const res = await fetch(`https://www.instagram.com/p/${shortcode}/embed/captioned/`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const comments: string[] = [];
+
+    // Walk an arbitrary JSON object looking for Instagram comment text fields
+    const walk = (obj: unknown, depth = 0): void => {
+      if (depth > 15 || comments.length >= 5 || !obj || typeof obj !== 'object') return;
+      if (Array.isArray(obj)) { obj.forEach((v) => walk(v, depth + 1)); return; }
+      const o = obj as Record<string, unknown>;
+      if (typeof o['text'] === 'string' && (o['text'] as string).length > 10) {
+        comments.push(o['text'] as string);
+      }
+      Object.values(o).forEach((v) => walk(v, depth + 1));
+    };
+
+    // Try structured JSON payloads first (most reliable)
+    for (const m of html.matchAll(/<script type="application\/json"[^>]*>([\s\S]*?)<\/script>/gi)) {
+      try { walk(JSON.parse(m[1])); } catch { /* malformed */ }
+      if (comments.length >= 5) break;
+    }
+
+    if (comments.length > 0) return [...new Set(comments)].slice(0, 5);
+
+    // Fallback: plain text in <span> tags (captures visible comment text in older embed HTML)
+    for (const m of html.matchAll(/<span[^>]*>([^<]{15,600})<\/span>/g)) {
+      const text = m[1].trim();
+      if (text && !comments.includes(text)) {
+        comments.push(text);
+        if (comments.length >= 5) break;
+      }
+    }
+
+    return comments;
+  } catch {
+    return [];
+  }
 }
 
 async function fetchInstagramContext(url: string): Promise<InstagramContext> {
-  try {
-    const res = await fetch(
-      `https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(url)}`,
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-        },
+  const shortcode = extractInstagramShortcode(url);
+
+  const [oembedResult, topComments] = await Promise.allSettled([
+    fetch(`https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(url)}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
       },
-    );
-    if (!res.ok) return { caption: '', thumbnailUrl: '' };
-    const data = await res.json() as { title?: string; thumbnail_url?: string };
-    return { caption: data.title ?? '', thumbnailUrl: data.thumbnail_url ?? '' };
-  } catch {
-    return { caption: '', thumbnailUrl: '' };
+    }),
+    shortcode ? fetchInstagramTopComments(shortcode) : Promise.resolve([]),
+  ]);
+
+  let caption = '';
+  let thumbnailUrl = '';
+  if (oembedResult.status === 'fulfilled' && oembedResult.value.ok) {
+    const data = await oembedResult.value.json() as { title?: string; thumbnail_url?: string };
+    caption = data.title ?? '';
+    thumbnailUrl = data.thumbnail_url ?? '';
   }
+
+  return {
+    caption,
+    thumbnailUrl,
+    topComments: topComments.status === 'fulfilled' ? topComments.value : [],
+  };
 }
 
 async function extractFromInstagram(
@@ -267,12 +328,11 @@ async function extractFromInstagram(
   }
 
   const textParts: string[] = [];
-  if (ctx.caption) {
-    textParts.push(`Instagram post caption:\n${ctx.caption}`);
-  } else if (!ctx.thumbnailUrl) {
+  if (ctx.caption) textParts.push(`Instagram post caption:\n${ctx.caption}`);
+  if (ctx.topComments.length > 0) textParts.push(`Top comments:\n${ctx.topComments.map((c, i) => `${i + 1}. ${c}`).join('\n')}`);
+  if (!ctx.caption && !ctx.thumbnailUrl) {
     textParts.push(`Instagram URL: ${url}\nNo caption or thumbnail could be retrieved.`);
-  }
-  if (ctx.thumbnailUrl && !ctx.caption) {
+  } else if (ctx.thumbnailUrl && !ctx.caption) {
     textParts.push('Extract whatever recipe information is visible in the image.');
   }
   contentBlocks.push({ type: 'text', text: textParts.join('\n\n') });
