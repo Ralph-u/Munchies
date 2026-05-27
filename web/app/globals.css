@@ -33,10 +33,10 @@ body {
   border-radius: 999px;
   border: 1px solid var(--black);
   border-bottom-width: 3px;
-  height: 41px;
-  padding: 0 40px;
+  padding: 12px 40px;
   font-weight: 500;
   font-size: 14px;
+  line-height: 1;
   cursor: pointer;
   transition: opacity 0.15s;
   display: inline-flex;
