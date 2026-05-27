@@ -8,7 +8,6 @@ export default function AddPage() {
   const [url, setUrl] = useState('');
   const [pasteHint, setPasteHint] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const hasUrl = url.trim().length > 0;
 
   async function handlePaste() {
     if (navigator.clipboard?.readText) {
@@ -17,6 +16,7 @@ export default function AddPage() {
         if (text) { setUrl(text); setPasteHint(''); return; }
       } catch {}
     }
+    // Clipboard API unavailable or denied — focus input so user can long-press paste
     inputRef.current?.focus();
     setPasteHint('Long-press the field above and tap Paste');
     setTimeout(() => setPasteHint(''), 4000);
@@ -24,7 +24,7 @@ export default function AddPage() {
 
   function handleExtract() {
     const trimmed = url.trim();
-    if (!trimmed) return;
+    if (!trimmed) { inputRef.current?.focus(); return; }
     router.push(`/processing?url=${encodeURIComponent(trimmed)}`);
   }
 
@@ -49,7 +49,7 @@ export default function AddPage() {
       <div style={{ flex: 1, padding: '0 16px 120px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <h1 className="font-serif" style={{ fontSize: 32, fontWeight: 400, color: '#1a1a1a', margin: 0, lineHeight: 1.2 }}>Add a recipe</h1>
-          <p style={{ fontSize: 14, fontWeight: 500, color: '#1a1a1a', margin: 0, lineHeight: 1.6 }}>
+          <p style={{ fontSize: 14, fontWeight: 500, color: '#1a1a1a', margin: 0, lineHeight: 1.4 }}>
             Press the share button from YouTube or Instagram to Munchies and the app will pull the recipe and save it here! Alternatively you can paste in a URL link here.
           </p>
         </div>
@@ -74,7 +74,6 @@ export default function AddPage() {
               fontSize: 16, // 16px prevents iOS auto-zoom on focus
               color: '#1a1a1a',
               width: '100%',
-              boxSizing: 'border-box',
               outline: 'none',
               fontFamily: 'inherit',
             }}
@@ -82,22 +81,22 @@ export default function AddPage() {
           {pasteHint && <p style={{ fontSize: 12, color: '#1a1a1a', opacity: 0.55, margin: '4px 0 0' }}>{pasteHint}</p>}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: hasUrl ? 'space-between' : 'flex-start' }}>
+        {/* Paste from clipboard — centred per Figma */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
           <button
             onClick={handlePaste}
             style={{ background: 'none', border: 'none', fontSize: 14, fontWeight: 500, color: '#000', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
           >
             Paste from clipboard
           </button>
-          {hasUrl && (
-            <button
-              onClick={handleExtract}
-              className="btn-comic btn-comic-yellow fade-up"
-            >
-              Extract recipe
-            </button>
-          )}
         </div>
+      </div>
+
+      {/* Docked primary CTA — always visible */}
+      <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', width: 'calc(100% - 32px)', maxWidth: 448, zIndex: 10 }}>
+        <button onClick={handleExtract} className="btn-comic btn-comic-yellow" style={{ width: '100%' }}>
+          Add a new recipe
+        </button>
       </div>
     </div>
   );
