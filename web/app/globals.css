@@ -97,7 +97,4 @@ body {
 
 .header-art {
   background: var(--cream);
-  background-image: url('/header-art.png');
-  background-size: cover;
-  background-position: center;
 }

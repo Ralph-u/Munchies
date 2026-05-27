@@ -1,7 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 export default function AddPage() {
   const router = useRouter();
@@ -11,16 +10,12 @@ export default function AddPage() {
   const hasUrl = url.trim().length > 0;
 
   async function handlePaste() {
-    // Try the Clipboard API first (works on Android, desktop, and iOS 16.4+ with permission)
     if (navigator.clipboard?.readText) {
       try {
         const text = await navigator.clipboard.readText();
         if (text) { setUrl(text); setPasteHint(''); return; }
-      } catch {
-        // Permission denied or not available — fall through to manual paste hint
-      }
+      } catch {}
     }
-    // iOS Safari fallback: focus the input so the user can long-press → Paste
     inputRef.current?.focus();
     setPasteHint('Long-press the field above and tap Paste');
     setTimeout(() => setPasteHint(''), 4000);
@@ -33,32 +28,67 @@ export default function AddPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--cream)', display: 'flex', flexDirection: 'column' }}>
-      <div className="header-art" style={{ height: 140 }} />
-      <div className="container" style={{ flex: 1, paddingTop: 24, paddingBottom: 120, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <Link href="/" style={{ fontSize: 14, fontWeight: 500, color: 'var(--black)', textDecoration: 'none', opacity: 0.6 }}>← Back</Link>
+    <div style={{ minHeight: '100vh', background: '#fffcbc', display: 'flex', flexDirection: 'column' }}>
+
+      {/* Illustration band */}
+      <div style={{ height: 160, background: '#fffcbc', overflow: 'hidden', flexShrink: 0 }}>
+        <img src="/header-art.svg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, padding: '0 16px 120px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <h1 className="font-serif" style={{ fontSize: 32, fontWeight: 400, color: 'var(--black)', margin: 0, lineHeight: 1.2 }}>Add a recipe</h1>
-          <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--black)', margin: 0, lineHeight: 1.6 }}>Paste a YouTube or Instagram cooking video link and Munchies will pull the recipe and save it for you.</p>
+          <h1 className="font-serif" style={{ fontSize: 32, fontWeight: 400, color: '#1a1a1a', margin: 0, lineHeight: 1.2 }}>Add a recipe</h1>
+          <p style={{ fontSize: 14, fontWeight: 500, color: '#1a1a1a', margin: 0, lineHeight: 1.6 }}>
+            Press the share button from YouTube or Instagram to Munchies and the app will pull the recipe and save it here! Alternatively you can paste in a URL link here.
+          </p>
         </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label style={{ fontSize: 12, color: 'var(--black)' }}>URL link</label>
-          <input ref={inputRef} className="input-comic" type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." autoCapitalize="off" autoCorrect="off" onKeyDown={(e) => e.key === 'Enter' && handleExtract()} />
-          {pasteHint && <p style={{ fontSize: 12, color: 'var(--black)', opacity: 0.55, margin: '4px 0 0' }}>{pasteHint}</p>}
+          <label style={{ fontSize: 12, color: '#1a1a1a' }}>URL link</label>
+          <input
+            ref={inputRef}
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://youtube.com/watch?v=..."
+            autoCapitalize="off"
+            autoCorrect="off"
+            onKeyDown={(e) => e.key === 'Enter' && handleExtract()}
+            style={{
+              background: '#fff',
+              border: '1px solid #000',
+              borderBottomWidth: 2,
+              borderRadius: 12,
+              padding: '10px 16px',
+              fontSize: 16, // 16px prevents iOS auto-zoom on focus
+              color: '#1a1a1a',
+              width: '100%',
+              boxSizing: 'border-box',
+              outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+          {pasteHint && <p style={{ fontSize: 12, color: '#1a1a1a', opacity: 0.55, margin: '4px 0 0' }}>{pasteHint}</p>}
         </div>
+
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: hasUrl ? 'space-between' : 'flex-start' }}>
-          <button onClick={handlePaste} style={{ background: 'none', border: 'none', fontSize: 14, fontWeight: 500, color: 'var(--black)', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>Paste from clipboard</button>
-          {hasUrl && <button onClick={handleExtract} className="btn-comic btn-comic-yellow fade-up">Extract</button>}
-        </div>
-        <div style={{ marginTop: 'auto', padding: 16, background: 'rgba(255,255,255,0.6)', borderRadius: 12, border: '1px solid rgba(0,0,0,0.08)' }}>
-          <p style={{ fontSize: 12, color: 'var(--black)', opacity: 0.6, margin: 0, lineHeight: 1.6 }}>✅ Works with YouTube, YouTube Shorts, Instagram Reels, and most recipe websites.</p>
+          <button
+            onClick={handlePaste}
+            style={{ background: 'none', border: 'none', fontSize: 14, fontWeight: 500, color: '#000', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
+          >
+            Paste from clipboard
+          </button>
+          {hasUrl && (
+            <button
+              onClick={handleExtract}
+              className="btn-comic btn-comic-yellow fade-up"
+            >
+              Extract recipe
+            </button>
+          )}
         </div>
       </div>
-      {hasUrl && (
-        <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', width: 'calc(100% - 32px)', maxWidth: 448 }}>
-          <button onClick={handleExtract} className="btn-comic btn-comic-yellow" style={{ width: '100%', fontSize: 16 }}>Extract recipe</button>
-        </div>
-      )}
     </div>
   );
 }
