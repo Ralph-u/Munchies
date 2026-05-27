@@ -105,7 +105,7 @@ export default function RecipeCardPage({ params }: { params: { id: string } }) {
 
       {/* Fixed bottom CTA */}
       <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', width: 'calc(100% - 32px)', maxWidth: 448, zIndex: 10 }}>
-        <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" className="btn-comic btn-comic-yellow" style={{ width: '100%', display: 'block', textAlign: 'center' }}>{isVideo ? 'Watch recipe video' : 'Go to website'}</a>
+        <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" className="btn-comic btn-comic-yellow" style={{ width: '100%' }}>{isVideo ? 'Watch recipe video' : 'Go to website'}</a>
       </div>
     </div>
   );
