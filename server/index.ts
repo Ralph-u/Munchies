@@ -206,6 +206,10 @@ async function fetchAuthor(url: string): Promise<string | undefined> {
 
 type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
 
+type ContentBlock =
+  | { type: 'image'; source: { type: 'base64'; media_type: ImageMediaType; data: string } }
+  | { type: 'text'; text: string };
+
 function toImageMediaType(contentType: string): ImageMediaType {
   if (contentType.includes('png')) return 'image/png';
   if (contentType.includes('webp')) return 'image/webp';
@@ -220,6 +224,72 @@ async function fetchImageBase64(url: string): Promise<{ data: string; mediaType:
     data: Buffer.from(buffer).toString('base64'),
     mediaType: toImageMediaType(res.headers.get('content-type') ?? ''),
   };
+}
+
+// ─── Instagram extraction ─────────────────────────────────────────────────────
+
+interface InstagramContext {
+  caption: string;
+  thumbnailUrl: string;
+}
+
+async function fetchInstagramContext(url: string): Promise<InstagramContext> {
+  try {
+    const res = await fetch(
+      `https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(url)}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+        },
+      },
+    );
+    if (!res.ok) return { caption: '', thumbnailUrl: '' };
+    const data = await res.json() as { title?: string; thumbnail_url?: string };
+    return { caption: data.title ?? '', thumbnailUrl: data.thumbnail_url ?? '' };
+  } catch {
+    return { caption: '', thumbnailUrl: '' };
+  }
+}
+
+async function extractFromInstagram(
+  url: string,
+  client: Anthropic,
+): Promise<Omit<Recipe, 'id' | 'source_url' | 'source_platform' | 'created_at'>> {
+  const ctx = await fetchInstagramContext(url);
+  const contentBlocks: ContentBlock[] = [];
+
+  if (ctx.thumbnailUrl) {
+    try {
+      const { data, mediaType } = await fetchImageBase64(ctx.thumbnailUrl);
+      contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data } });
+    } catch { /* thumbnail download failed — proceed with text only */ }
+  }
+
+  const textParts: string[] = [];
+  if (ctx.caption) {
+    textParts.push(`Instagram post caption:\n${ctx.caption}`);
+  } else if (!ctx.thumbnailUrl) {
+    textParts.push(`Instagram URL: ${url}\nNo caption or thumbnail could be retrieved.`);
+  }
+  if (ctx.thumbnailUrl && !ctx.caption) {
+    textParts.push('Extract whatever recipe information is visible in the image.');
+  }
+  contentBlocks.push({ type: 'text', text: textParts.join('\n\n') });
+
+  const message = await client.messages.create({
+    model: 'claude-opus-4-7',
+    max_tokens: 2048,
+    system: EXTRACTION_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: contentBlocks }],
+  });
+
+  const raw = message.content.find((b) => b.type === 'text')?.text ?? '';
+  const parsed = parseClaudeJson(raw);
+  if ('error' in parsed) {
+    return { title: 'Unknown Recipe', ingredients: [], steps: [], confidence: 'low' };
+  }
+  return parsed as Omit<Recipe, 'id' | 'source_url' | 'source_platform' | 'created_at'>;
 }
 
 // ─── JSON parsing ─────────────────────────────────────────────────────────────
@@ -240,6 +310,11 @@ async function extractRecipe(url: string): Promise<Omit<Recipe, 'id' | 'source_u
   // Strip anything after whitespace in case the env var was saved with extra content
   const apiKey = (process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '').split(/\s/)[0];
   const client = new Anthropic({ apiKey });
+
+  // ── Instagram path ────────────────────────────────────────────────────────
+  if (detectPlatform(url) === 'instagram') {
+    return extractFromInstagram(url, client);
+  }
 
   // ── Primary path: transcript + page metadata ──────────────────────────────
   let transcript = '';
@@ -282,10 +357,6 @@ async function extractRecipe(url: string): Promise<Omit<Recipe, 'id' | 'source_u
   if (meta.title) textParts.push(`Video title: ${meta.title}`);
   if (meta.description) textParts.push(`Video description: ${meta.description}`);
   textParts.push('Extract whatever recipe information is visible. If the thumbnail shows a finished dish with no ingredient or step details, infer what you can from the title and description.');
-
-  type ContentBlock =
-    | { type: 'image'; source: { type: 'base64'; media_type: ImageMediaType; data: string } }
-    | { type: 'text'; text: string };
 
   const contentBlocks: ContentBlock[] = [];
 
