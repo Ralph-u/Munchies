@@ -219,10 +219,13 @@ function toImageMediaType(contentType: string): ImageMediaType {
 
 async function fetchImageBase64(url: string): Promise<{ data: string; mediaType: ImageMediaType }> {
   const res = await fetch(url);
+  if (!res.ok) throw new Error(`Image fetch failed: ${res.status}`);
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.startsWith('image/')) throw new Error(`Not an image: ${contentType}`);
   const buffer = await res.arrayBuffer();
   return {
     data: Buffer.from(buffer).toString('base64'),
-    mediaType: toImageMediaType(res.headers.get('content-type') ?? ''),
+    mediaType: toImageMediaType(contentType),
   };
 }
 
@@ -420,14 +423,27 @@ async function extractFromInstagram(
   }
   contentBlocks.push({ type: 'text', text: textParts.join('\n\n') });
 
-  const message = await client.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 2048,
-    system: EXTRACTION_SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: contentBlocks }],
-  });
+  async function callClaude(blocks: ContentBlock[]) {
+    const msg = await client.messages.create({
+      model: 'claude-opus-4-7',
+      max_tokens: 2048,
+      system: EXTRACTION_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: blocks }],
+    });
+    return msg.content.find((b) => b.type === 'text')?.text ?? '';
+  }
 
-  const raw = message.content.find((b) => b.type === 'text')?.text ?? '';
+  let raw: string;
+  try {
+    raw = await callClaude(contentBlocks);
+  } catch (err) {
+    // Claude rejected the image (e.g. CDN served a non-image) — retry with text only
+    const textOnly = contentBlocks.filter((b) => b.type === 'text');
+    if (textOnly.length === contentBlocks.length) throw err; // no image was in the request anyway
+    console.log('Image rejected by Claude, retrying text-only:', err instanceof Error ? err.message : err);
+    raw = await callClaude(textOnly);
+  }
+
   const parsed = parseClaudeJson(raw);
   if ('error' in parsed) {
     return { title: 'Unknown Recipe', ingredients: [], steps: [], confidence: 'low' };
