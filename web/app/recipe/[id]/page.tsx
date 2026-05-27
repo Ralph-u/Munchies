@@ -65,7 +65,7 @@ export default function RecipeCardPage({ params }: { params: { id: string } }) {
           {parsed.map((ing, i) => (
             <div key={i} className="ingredient-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 4px', fontSize: 14 }}>
               <span style={{ fontWeight: 500 }}>{ing.name}</span>
-              <span style={{ fontWeight: 300, opacity: 0.7 }}>{ing.qty}</span>
+              <span style={{ fontWeight: 300 }}>{ing.qty}</span>
             </div>
           ))}
         </div>
