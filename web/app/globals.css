@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'PPEditorialNew';
+  src: url('/PPEditorialNew-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --yellow: #FFF312;
   --cream: #fffcbc;
@@ -18,7 +26,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.font-serif { font-family: var(--font-serif), 'Playfair Display', serif; }
+.font-serif { font-family: 'PPEditorialNew', var(--font-serif), 'Playfair Display', serif; }
 
 .btn-comic {
   border-radius: 999px;
@@ -89,8 +97,7 @@ body {
 
 .header-art {
   background: var(--cream);
-  background-image: repeating-linear-gradient(
-    45deg, transparent, transparent 10px,
-    rgba(255, 243, 18, 0.15) 10px, rgba(255, 243, 18, 0.15) 20px
-  );
+  background-image: url('/header-art.png');
+  background-size: cover;
+  background-position: center;
 }
