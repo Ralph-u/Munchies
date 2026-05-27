@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL ?? '';
 const HERO_HEIGHT = 202;
-const HERO_OVERLAP = 24;
+const HERO_OVERLAP = 64;
 
 interface Recipe {
   id: string; title: string; source_url: string;
@@ -66,7 +66,7 @@ export default function RecipeCardPage({ params }: { params: { id: string } }) {
       }}>←</Link>
 
       {/* Scrollable content — overlaps hero by HERO_OVERLAP px so pulling reveals more image */}
-      <div style={{ position: 'relative', zIndex: 1, marginTop: HERO_HEIGHT - HERO_OVERLAP, background: '#fff', borderRadius: '16px 16px 0 0', paddingBottom: 120 }}>
+      <div style={{ position: 'relative', zIndex: 1, marginTop: HERO_HEIGHT - HERO_OVERLAP, background: '#fff', paddingBottom: 120 }}>
         <div className="container fade-up" style={{ paddingTop: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <h1 className="font-serif" style={{ fontSize: 32, fontWeight: 400, color: 'var(--black)', margin: 0, lineHeight: 1.2 }}>{recipe.title}</h1>
@@ -75,11 +75,11 @@ export default function RecipeCardPage({ params }: { params: { id: string } }) {
           <Link href={`/recipe/${params.id}/edit`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 35, borderRadius: 999, border: '1px dashed var(--black)', background: 'rgba(0,0,0,0.02)', fontSize: 14, fontWeight: 500, color: 'var(--black)', textDecoration: 'none' }}>Edit recipe</Link>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <h2 className="font-serif" style={{ fontSize: 24, fontWeight: 400, margin: 0 }}>Ingredients</h2>
+              <h2 className="font-instrument" style={{ fontSize: 24, fontWeight: 400, margin: 0 }}>Ingredients</h2>
               <div style={{ flex: 1, height: 1, background: 'var(--black)' }} />
             </div>
             {parsed.map((ing, i) => (
-              <div key={i} className="ingredient-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 4px', fontSize: 14 }}>
+              <div key={i} className="ingredient-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '6px 4px', fontSize: 14 }}>
                 <span style={{ fontWeight: 500 }}>{ing.name}</span>
                 <span style={{ fontWeight: 300 }}>{ing.qty}</span>
               </div>
@@ -87,7 +87,7 @@ export default function RecipeCardPage({ params }: { params: { id: string } }) {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <h2 className="font-serif" style={{ fontSize: 24, fontWeight: 400, margin: 0 }}>Steps</h2>
+              <h2 className="font-instrument" style={{ fontSize: 24, fontWeight: 400, margin: 0 }}>Steps</h2>
               <div style={{ flex: 1, height: 1, background: 'var(--black)' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

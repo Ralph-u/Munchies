@@ -27,6 +27,7 @@ body {
 }
 
 .font-serif { font-family: 'PPEditorialNew', var(--font-serif), 'Playfair Display', serif; }
+.font-instrument { font-family: var(--font-instrument-serif), 'Instrument Serif', serif; }
 
 .btn-comic {
   border-radius: 999px;
