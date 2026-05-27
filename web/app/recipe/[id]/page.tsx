@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL ?? '';
-const HERO_HEIGHT = 200;
+const HERO_HEIGHT = 202;
+const HERO_OVERLAP = 24;
 
 interface Recipe {
   id: string; title: string; source_url: string;
@@ -64,14 +65,14 @@ export default function RecipeCardPage({ params }: { params: { id: string } }) {
         textDecoration: 'none', fontSize: 20, fontWeight: 700, color: 'var(--black)',
       }}>←</Link>
 
-      {/* Scrollable content — starts below hero */}
-      <div style={{ position: 'relative', zIndex: 1, marginTop: HERO_HEIGHT, background: '#fff', borderRadius: '16px 16px 0 0', paddingBottom: 120 }}>
+      {/* Scrollable content — overlaps hero by HERO_OVERLAP px so pulling reveals more image */}
+      <div style={{ position: 'relative', zIndex: 1, marginTop: HERO_HEIGHT - HERO_OVERLAP, background: '#fff', borderRadius: '16px 16px 0 0', paddingBottom: 120 }}>
         <div className="container fade-up" style={{ paddingTop: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <h1 className="font-serif" style={{ fontSize: 32, fontWeight: 400, color: 'var(--black)', margin: 0, lineHeight: 1.2 }}>{recipe.title}</h1>
             <p style={{ fontSize: 12, color: 'var(--black)', opacity: 0.5, margin: 0 }}>{meta}</p>
           </div>
-          <Link href={`/recipe/${params.id}/edit`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 36, borderRadius: 999, border: '1px dashed var(--black)', background: 'rgba(0,0,0,0.02)', fontSize: 14, fontWeight: 500, color: 'var(--black)', textDecoration: 'none' }}>Edit recipe</Link>
+          <Link href={`/recipe/${params.id}/edit`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 35, borderRadius: 999, border: '1px dashed var(--black)', background: 'rgba(0,0,0,0.02)', fontSize: 14, fontWeight: 500, color: 'var(--black)', textDecoration: 'none' }}>Edit recipe</Link>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <h2 className="font-serif" style={{ fontSize: 24, fontWeight: 400, margin: 0 }}>Ingredients</h2>

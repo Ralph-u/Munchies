@@ -30,11 +30,12 @@ body {
 
 .btn-comic {
   border-radius: 999px;
-  border: 2px solid var(--black);
-  border-bottom-width: 5px;
-  padding: 16px 40px;
-  font-weight: 600;
-  font-size: 16px;
+  border: 1px solid var(--black);
+  border-bottom-width: 3px;
+  height: 41px;
+  padding: 0 40px;
+  font-weight: 500;
+  font-size: 14px;
   cursor: pointer;
   transition: opacity 0.15s;
   display: inline-flex;
@@ -43,7 +44,7 @@ body {
   text-decoration: none;
 }
 .btn-comic:hover { opacity: 0.85; }
-.btn-comic:active { transform: translateY(2px); border-bottom-width: 2px; }
+.btn-comic:active { transform: translateY(2px); border-bottom-width: 1px; }
 .btn-comic-yellow { background: var(--yellow); color: var(--black); }
 .btn-comic-white { background: var(--white); color: var(--black); }
 
