@@ -238,79 +238,158 @@ function extractInstagramShortcode(url: string): string | null {
   return url.match(/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/)?.[1] ?? null;
 }
 
-async function fetchInstagramTopComments(shortcode: string): Promise<string[]> {
-  try {
-    const res = await fetch(`https://www.instagram.com/p/${shortcode}/embed/captioned/`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
-    });
-    if (!res.ok) return [];
-    const html = await res.text();
-    const comments: string[] = [];
+const IG_UA_DESKTOP = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+const IG_UA_MOBILE  = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
-    // Walk an arbitrary JSON object looking for Instagram comment text fields
-    const walk = (obj: unknown, depth = 0): void => {
-      if (depth > 15 || comments.length >= 5 || !obj || typeof obj !== 'object') return;
-      if (Array.isArray(obj)) { obj.forEach((v) => walk(v, depth + 1)); return; }
-      const o = obj as Record<string, unknown>;
-      if (typeof o['text'] === 'string' && (o['text'] as string).length > 10) {
-        comments.push(o['text'] as string);
-      }
-      Object.values(o).forEach((v) => walk(v, depth + 1));
-    };
+// Walk an arbitrary JS object collecting all string values keyed "text"
+function walkForText(obj: unknown, results: string[], maxItems: number, maxDepth: number, depth = 0): void {
+  if (depth > maxDepth || results.length >= maxItems || !obj || typeof obj !== 'object') return;
+  if (Array.isArray(obj)) { obj.forEach(v => walkForText(v, results, maxItems, maxDepth, depth + 1)); return; }
+  const o = obj as Record<string, unknown>;
+  if (typeof o['text'] === 'string' && (o['text'] as string).length > 10) results.push(o['text'] as string);
+  Object.values(o).forEach(v => walkForText(v, results, maxItems, maxDepth, depth + 1));
+}
 
-    // Try structured JSON payloads first (most reliable)
-    for (const m of html.matchAll(/<script type="application\/json"[^>]*>([\s\S]*?)<\/script>/gi)) {
-      try { walk(JSON.parse(m[1])); } catch { /* malformed */ }
-      if (comments.length >= 5) break;
-    }
-
-    if (comments.length > 0) return [...new Set(comments)].slice(0, 5);
-
-    // Fallback: plain text in <span> tags (captures visible comment text in older embed HTML)
-    for (const m of html.matchAll(/<span[^>]*>([^<]{15,600})<\/span>/g)) {
-      const text = m[1].trim();
-      if (text && !comments.includes(text)) {
-        comments.push(text);
-        if (comments.length >= 5) break;
-      }
-    }
-
-    return comments;
-  } catch {
-    return [];
+// Find the caption node specifically (Instagram marks it with is_caption: true)
+function findCaptionInJson(obj: unknown, depth = 0): string {
+  if (depth > 20 || !obj || typeof obj !== 'object') return '';
+  if (Array.isArray(obj)) {
+    for (const v of obj) { const r = findCaptionInJson(v, depth + 1); if (r) return r; }
+    return '';
   }
+  const o = obj as Record<string, unknown>;
+  if (o['is_caption'] === true && typeof o['text'] === 'string') return o['text'] as string;
+  for (const v of Object.values(o)) { const r = findCaptionInJson(v, depth + 1); if (r) return r; }
+  return '';
+}
+
+// Parse all <script> tags in the page looking for caption and comment text
+function extractFromPageScripts(html: string): { caption: string; comments: string[] } {
+  let caption = '';
+  const comments: string[] = [];
+
+  for (const m of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)) {
+    const raw = m[1].trim();
+    if (!raw) continue;
+    let parsed: unknown;
+    try { parsed = JSON.parse(raw); } catch { continue; }
+
+    // Look for explicit caption node first
+    const c = findCaptionInJson(parsed);
+    if (c && c.length > caption.length) caption = c;
+
+    // Collect all text nodes as potential comments
+    const texts: string[] = [];
+    walkForText(parsed, texts, 20, 15);
+    for (const t of texts) {
+      if (t !== caption && !comments.includes(t)) comments.push(t);
+    }
+  }
+
+  return { caption, comments: [...new Set(comments)].slice(0, 8) };
+}
+
+// Scrape the post page directly — most reliable source for the full caption
+async function scrapeInstagramPost(url: string): Promise<{ caption: string; thumbnailUrl: string; pageComments: string[] }> {
+  for (const ua of [IG_UA_MOBILE, IG_UA_DESKTOP]) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': ua,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+        },
+        redirect: 'follow',
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+
+      // og:description is formatted like: "N likes, M comments - @user on date: "caption""
+      // or simply "username: caption text"
+      let caption = metaContent(html, 'property', 'og:description') || '';
+      // Strip the leading metadata prefix — everything after the first ": " that has substantial text
+      const capMatch = caption.match(/[^:]+:\s*(.{15,})$/s);
+      if (capMatch) caption = capMatch[1].replace(/^["'"]|["'"]\s*$/g, '').trim();
+
+      const thumbnailUrl = metaContent(html, 'property', 'og:image') || '';
+
+      // Try to get a more complete caption and comments from embedded JSON
+      const { caption: jsonCaption, comments: pageComments } = extractFromPageScripts(html);
+      if (jsonCaption && jsonCaption.length > caption.length) caption = jsonCaption;
+
+      if (caption.length > 15 || thumbnailUrl) {
+        return { caption, thumbnailUrl, pageComments };
+      }
+    } catch { /* try next user-agent */ }
+  }
+  return { caption: '', thumbnailUrl: '', pageComments: [] };
+}
+
+// Try the embed page for comments not surfaced in the post page JSON
+async function scrapeInstagramEmbedComments(shortcode: string): Promise<string[]> {
+  for (const path of [`/p/${shortcode}/embed/captioned/`, `/p/${shortcode}/embed/`]) {
+    try {
+      const res = await fetch(`https://www.instagram.com${path}`, {
+        headers: { 'User-Agent': IG_UA_DESKTOP, 'Accept': 'text/html', 'Accept-Language': 'en-US,en;q=0.5' },
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const comments: string[] = [];
+
+      for (const m of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)) {
+        try { walkForText(JSON.parse(m[1].trim()), comments, 10, 15); } catch {}
+        if (comments.length >= 10) break;
+      }
+      if (comments.length > 0) return [...new Set(comments)].slice(0, 5);
+
+      // Span fallback for older embed HTML
+      for (const m of html.matchAll(/<span[^>]*>([^<]{15,600})<\/span>/g)) {
+        const t = m[1].trim();
+        if (t && !comments.includes(t)) { comments.push(t); if (comments.length >= 5) break; }
+      }
+      if (comments.length > 0) return comments;
+    } catch { /* try next path */ }
+  }
+  return [];
 }
 
 async function fetchInstagramContext(url: string): Promise<InstagramContext> {
   const shortcode = extractInstagramShortcode(url);
 
-  const [oembedResult, topComments] = await Promise.allSettled([
+  // All three sources run in parallel
+  const [pageResult, oembedResult, embedComments] = await Promise.allSettled([
+    scrapeInstagramPost(url),
     fetch(`https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(url)}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
-      },
+      headers: { 'User-Agent': IG_UA_DESKTOP, 'Accept': 'application/json' },
     }),
-    shortcode ? fetchInstagramTopComments(shortcode) : Promise.resolve([]),
+    shortcode ? scrapeInstagramEmbedComments(shortcode) : Promise.resolve([]),
   ]);
 
   let caption = '';
   let thumbnailUrl = '';
-  if (oembedResult.status === 'fulfilled' && oembedResult.value.ok) {
-    const data = await oembedResult.value.json() as { title?: string; thumbnail_url?: string };
-    caption = data.title ?? '';
-    thumbnailUrl = data.thumbnail_url ?? '';
+  let topComments: string[] = [];
+
+  // Page scrape is primary
+  if (pageResult.status === 'fulfilled') {
+    caption = pageResult.value.caption;
+    thumbnailUrl = pageResult.value.thumbnailUrl;
+    topComments = pageResult.value.pageComments;
   }
 
-  return {
-    caption,
-    thumbnailUrl,
-    topComments: topComments.status === 'fulfilled' ? topComments.value : [],
-  };
+  // oEmbed fills gaps
+  if ((!caption || !thumbnailUrl) && oembedResult.status === 'fulfilled' && oembedResult.value.ok) {
+    const data = await oembedResult.value.json() as { title?: string; thumbnail_url?: string };
+    if (!caption && data.title) caption = data.title;
+    if (!thumbnailUrl && data.thumbnail_url) thumbnailUrl = data.thumbnail_url;
+  }
+
+  // Embed page fills in comments if we didn't get any from the post page
+  if (topComments.length === 0 && embedComments.status === 'fulfilled') {
+    topComments = embedComments.value;
+  }
+
+  return { caption, thumbnailUrl, topComments };
 }
 
 async function extractFromInstagram(
@@ -328,12 +407,16 @@ async function extractFromInstagram(
   }
 
   const textParts: string[] = [];
-  if (ctx.caption) textParts.push(`Instagram post caption:\n${ctx.caption}`);
-  if (ctx.topComments.length > 0) textParts.push(`Top comments:\n${ctx.topComments.map((c, i) => `${i + 1}. ${c}`).join('\n')}`);
+  if (ctx.caption) {
+    textParts.push(`Instagram post caption (may contain the full recipe):\n${ctx.caption}`);
+  }
+  if (ctx.topComments.length > 0) {
+    textParts.push(`Post comments (check for pinned/top comment with recipe):\n${ctx.topComments.map((c, i) => `${i + 1}. ${c}`).join('\n')}`);
+  }
   if (!ctx.caption && !ctx.thumbnailUrl) {
-    textParts.push(`Instagram URL: ${url}\nNo caption or thumbnail could be retrieved.`);
+    textParts.push(`Instagram URL: ${url}\nNo caption or thumbnail could be retrieved — infer what you can.`);
   } else if (ctx.thumbnailUrl && !ctx.caption) {
-    textParts.push('Extract whatever recipe information is visible in the image.');
+    textParts.push('No caption available. Extract whatever recipe information is visible in the image.');
   }
   contentBlocks.push({ type: 'text', text: textParts.join('\n\n') });
 
@@ -455,14 +538,18 @@ async function extractRecipe(url: string): Promise<Omit<Recipe, 'id' | 'source_u
 }
 
 const EXTRACTION_SYSTEM_PROMPT = `You are a recipe extraction assistant.
-Given cooking video content (title, description, transcript, and/or thumbnail image), extract the recipe and return ONLY valid JSON with no markdown:
+Given cooking content (video transcript, Instagram caption, comments, and/or thumbnail image), extract the recipe and return ONLY valid JSON with no markdown:
 {
   "title": "string",
   "ingredients": ["string"],
   "steps": ["string"]
 }
-Each ingredient includes quantity. Steps are plain text with no numbering prefix.
-If no recipe can be determined at all, return { "error": "reason" }.`;
+Rules:
+- Each ingredient entry includes the quantity (e.g. "200g spaghetti", "2 cloves garlic").
+- Steps are plain text sentences with no numbering prefix.
+- Instagram captions often contain the full recipe as a list — extract it faithfully even if the formatting is informal (emoji bullets, line breaks, etc.).
+- If a pinned comment contains the recipe, prefer that over a vague caption.
+- If no recipe can be determined at all, return { "error": "reason" }.`;
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
