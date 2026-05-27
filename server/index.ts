@@ -102,6 +102,14 @@ function jsonLdImage(html: string): string {
   return '';
 }
 
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>').replace(/&apos;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/&#x([0-9a-fA-F]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)));
+}
+
 function toAbsoluteUrl(src: string, base: string): string {
   if (!src) return '';
   if (src.startsWith('http')) return src;
@@ -310,10 +318,10 @@ async function scrapeInstagramPost(url: string): Promise<{ caption: string; thum
 
       // og:description is formatted like: "N likes, M comments - @user on date: "caption""
       // or simply "username: caption text"
-      let caption = metaContent(html, 'property', 'og:description') || '';
+      let caption = decodeHtmlEntities(metaContent(html, 'property', 'og:description') || '');
       // Strip the leading metadata prefix — everything after the first ": " that has substantial text
       const capMatch = caption.match(/[^:]+:\s*(.{15,})$/s);
-      if (capMatch) caption = capMatch[1].replace(/^["'"]|["'"]\s*$/g, '').trim();
+      if (capMatch) caption = capMatch[1].replace(/^["'""]|["'""]\s*$/g, '').trim();
 
       const thumbnailUrl = metaContent(html, 'property', 'og:image') || '';
 
