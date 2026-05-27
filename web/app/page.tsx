@@ -154,9 +154,9 @@ export default function HomePage() {
                     <PlatformBadge platform={recipe.source_platform} />
                   </div>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div className="font-serif" style={{ fontSize: 20, fontWeight: 400, lineHeight: 1.2, color: '#1a1a1a' }}>{recipe.title}</div>
+                    <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.2, color: '#1a1a1a' }}>{recipe.title}</div>
                     <div style={{ fontSize: 12, color: '#808080' }}>
-                      {(recipe.ingredients?.length ?? 0)} ingredients · {(recipe.steps?.length ?? 0)} steps{recipe.created_at ? ` · saved ${timeAgo(recipe.created_at)}` : ''}
+                      {(recipe.ingredients?.length ?? 0)} ingredients · {(recipe.steps?.length ?? 0)} steps
                     </div>
                     {recipe.created_at && (
                       <div style={{ fontSize: 12, color: '#808080' }}>Uploaded {timeAgo(recipe.created_at)}</div>
